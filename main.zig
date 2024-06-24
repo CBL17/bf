@@ -25,19 +25,23 @@ pub fn main() !void {
     const buf = try file.readToEndAlloc(allocator, 1000000);
     defer allocator.free(buf);
 
+    const stdout = std.io.getStdOut().writer();
+    const stdin = std.io.getStdIn().reader();
+
     // program variables
     var program_memory: [65536]u8 = [_]u8{0} ** 65536;
     var address_ptr: u16 = 0;
     var program_counter: u16 = 0;
 
+    // interpreter logic
     while (program_counter < buf.len) : (program_counter += 1) {
         switch (buf[program_counter]) {
             '>' => address_ptr += 1,
             '<' => address_ptr -= 1,
-            '+' => program_memory[address_ptr] +%= 1,
+            '+' => program_memory[address_ptr] +%= 1, // wrapping operations
             '-' => program_memory[address_ptr] -%= 1,
-            '.' => std.debug.print("{c}", .{program_memory[address_ptr]}),
-            // ',' => 1,
+            '.' => try stdout.print("{c}", .{program_memory[address_ptr]}),
+            ',' => program_memory[address_ptr] = try stdin.readByte(),
             '[' => {
                 if (program_memory[address_ptr] == 0) {
                     var pairs_open: u8 = 1;
@@ -55,7 +59,7 @@ pub fn main() !void {
             ']' => {
                 if (program_memory[address_ptr] != 0) {
                     var pairs_open: u8 = 1;
-                    // must move PC past initial '[' so it is not double counted
+                    // must move PC past initial ']' so it is not double counted
                     program_counter -= 1;
 
                     while (pairs_open != 0) : (program_counter -= 1) {
